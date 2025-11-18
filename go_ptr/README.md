@@ -7,8 +7,8 @@
 Go 에서 "메모리 주소" 를 다루는 축은 총 세가지이다.
 
 1. 일반 포인터: **`*T`**
-3. 정수 주소값: **`uintptr`**
-2. 범용 포인터: **`unsafe.Pointer`**
+2. 정수 주소값: **`uintptr`**
+3. 범용 포인터: **`unsafe.Pointer`**
 
 각각 성격이 다르므로 오늘은 이 세가지에 대해 공부해보고 어느 상황에서 쓸 수 있는지를 학습해보도록 하자.
 
@@ -146,6 +146,26 @@ pb := (*int32)(unsafe.Pointer(base + 4))
 fmt.Printf("Value of pb: %d\n", *pb) // Value of pb: 2 정상 출력!
 ```
 
-### []byte <-> string 변환 (복사 없이)
+### syscall 인자 전달
 
-요러한 방식은 `zero copy` 방식으로
+```go
+func read(fd int, p []byte) (int, error) {
+    n, _, errno := syscall.Syscall(
+        syscall.SYS_READ,
+        uintptr(fd),
+        uintptr(unsafe.Pointer(&p[0])),
+        uintptr(len(p)),
+    )
+    if errno != 0 {
+        return 0, errno
+    }
+    return int(n), nil
+}
+
+```
+
+`syscall` 함수들은 보통 `uintptr` 을 인자로 받는다. 따라서 `syscall` 함수를 사용할 때는 `uintptr` 을 사용하여 메모리 주소를 전달해야 한다. 그리고 가장 안전하게는 syscall 호출인자 내에서 `식` 안에서 변환하는게 제일 좋다.
+
+## 마무리
+
+그렇다면 언제 사용해야 할까? 적은 예시 처럼 `C 라이브러리에 바인딩` 하거나 `Syscall` 함수를 사용할 때 보통 사용할 것 같다. 보통의 Application 작성시에는 `Pointer` 를 사용하게 되면 예상치 못하게 Resource 가 정리되지 않거나, 정리된 Resource 를 사용하는 상황이 발생해 사용하지 않을 것 같다. 그래도 알아두면 좋으니 한번 실습삼아 다들 해보기를 추천한다.
